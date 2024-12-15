@@ -43,6 +43,14 @@ enum Instruction {
     LoadHH = 0x64,
     LoadHL = 0x65,
     LoadHA = 0x67,
+    // Add of the LD L X instructions
+    LoadLB = 0x68,
+    LoadLC = 0x69,
+    LoadLD = 0x6A,
+    LoadLE = 0x6B,
+    LoadLH = 0x6C,
+    LoadLL = 0x6D,
+    LoadLA = 0x6F,
 }
 
 pub struct Cpu<'a> {
@@ -129,6 +137,14 @@ impl<'a> Cpu<'a> {
             Instruction::LoadHH => self.h = self.h,
             Instruction::LoadHL => self.h = self.l,
             Instruction::LoadHA => self.h = self.a,
+            // Add of the LD L X instructions
+            Instruction::LoadLB => self.l = self.b,
+            Instruction::LoadLC => self.l = self.c,
+            Instruction::LoadLD => self.l = self.d,
+            Instruction::LoadLE => self.l = self.e,
+            Instruction::LoadLH => self.l = self.h,
+            Instruction::LoadLL => self.l = self.l,
+            Instruction::LoadLA => self.l = self.a,
         }
     }
 }
