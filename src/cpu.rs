@@ -236,4 +236,9 @@ impl<'a> Cpu<'a> {
 
         output as u8
     }
+
+    #[cfg(test)]
+    fn set_byte_in_memory(self: &mut Self, address: u16, data: u8) {
+        self.memory.set_byte(address, data);
+    }
 }
