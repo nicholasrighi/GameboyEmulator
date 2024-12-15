@@ -3,6 +3,7 @@ use crate::memory;
 #[derive(FromPrimitive)]
 enum Instruction {
     NOP = 0x00,
+    // Add of the LD B X instructions
     LoadBB = 0x40,
     LoadBC = 0x41,
     LoadBD = 0x42,
@@ -10,6 +11,7 @@ enum Instruction {
     LoadBH = 0x44,
     LoadBL = 0x45,
     LoadBA = 0x47,
+    // Add of the LD C X instructions
     LoadCB = 0x48,
     LoadCC = 0x49,
     LoadCD = 0x4A,
@@ -17,6 +19,7 @@ enum Instruction {
     LoadCH = 0x4C,
     LoadCL = 0x4D,
     LoadCA = 0x4F,
+    // Add of the LD D X instructions
     LoadDB = 0x50,
     LoadDC = 0x51,
     LoadDD = 0x52,
@@ -24,6 +27,7 @@ enum Instruction {
     LoadDH = 0x54,
     LoadDL = 0x55,
     LoadDA = 0x57,
+    // Add of the LD H X instructions
     LoadHB = 0x60,
     LoadHC = 0x61,
     LoadHD = 0x62,
@@ -77,6 +81,7 @@ impl<'a> Cpu<'a> {
         self.pc += 1;
         match instruction {
             Instruction::NOP => {}
+            // Add of the LD B X instructions
             Instruction::LoadBB => self.b = self.b,
             Instruction::LoadBC => self.b = self.c,
             Instruction::LoadBD => self.b = self.d,
@@ -84,6 +89,7 @@ impl<'a> Cpu<'a> {
             Instruction::LoadBH => self.b = self.h,
             Instruction::LoadBL => self.b = self.l,
             Instruction::LoadBA => self.b = self.a,
+            // Add of the LD C X instructions
             Instruction::LoadCB => self.c = self.b,
             Instruction::LoadCC => self.c = self.c,
             Instruction::LoadCD => self.c = self.d,
@@ -91,6 +97,7 @@ impl<'a> Cpu<'a> {
             Instruction::LoadCH => self.c = self.h,
             Instruction::LoadCL => self.c = self.l,
             Instruction::LoadCA => self.c = self.a,
+            // Add of the LD D X instructions
             Instruction::LoadDB => self.d = self.b,
             Instruction::LoadDC => self.d = self.c,
             Instruction::LoadDD => self.d = self.d,
@@ -98,6 +105,7 @@ impl<'a> Cpu<'a> {
             Instruction::LoadDH => self.d = self.h,
             Instruction::LoadDL => self.d = self.l,
             Instruction::LoadDA => self.d = self.a,
+            // Add of the LD H X instructions
             Instruction::LoadHB => self.h = self.b,
             Instruction::LoadHC => self.h = self.c,
             Instruction::LoadHD => self.h = self.d,
