@@ -3,6 +3,13 @@ use crate::memory;
 #[derive(FromPrimitive)]
 enum Instruction {
     NOP = 0x00,
+    LoadBB = 0x40,
+    LoadBC = 0x41,
+    LoadBD = 0x42,
+    LoadBE = 0x43,
+    LoadBH = 0x44,
+    LoadBL = 0x45,
+    LoadBA = 0x47,
 }
 
 pub struct Cpu<'a> {
@@ -49,6 +56,13 @@ impl<'a> Cpu<'a> {
         self.pc += 1;
         match instruction {
             Instruction::NOP => {}
+            Instruction::LoadBB => self.b = self.b,
+            Instruction::LoadBC => self.b = self.c,
+            Instruction::LoadBD => self.b = self.d,
+            Instruction::LoadBE => self.b = self.e,
+            Instruction::LoadBH => self.b = self.h,
+            Instruction::LoadBL => self.b = self.l,
+            Instruction::LoadBA => self.b = self.a,
         }
     }
 }
