@@ -60,6 +60,14 @@ enum Instruction {
     AddAH = 0x84,
     AddAL = 0x85,
     AddAA = 0x87,
+    // the And A X instruction
+    AndAB = 0xA0,
+    AndAC = 0xA1,
+    AndAD = 0xA2,
+    AndAE = 0xA3,
+    AndAH = 0xA4,
+    AndAL = 0xA5,
+    AndAA = 0xA7,
 }
 
 bitflags! {
@@ -178,6 +186,14 @@ impl<'a> Cpu<'a> {
             Instruction::AddAH => self.a = self.add(self.a, self.h),
             Instruction::AddAL => self.a = self.add(self.a, self.l),
             Instruction::AddAA => self.a = self.add(self.a, self.a),
+            // And A X instruction
+            Instruction::AndAB => self.a = self.and(self.a, self.b),
+            Instruction::AndAC => self.a = self.and(self.a, self.c),
+            Instruction::AndAD => self.a = self.and(self.a, self.d),
+            Instruction::AndAE => self.a = self.and(self.a, self.e),
+            Instruction::AndAH => self.a = self.and(self.a, self.h),
+            Instruction::AndAL => self.a = self.and(self.a, self.l),
+            Instruction::AndAA => self.a = self.and(self.a, self.a),
         }
     }
 
@@ -199,6 +215,20 @@ impl<'a> Cpu<'a> {
         if output > u8::MAX as u16 {
             self.flags.set(CpuFlags::CARRY_FLAG, true);
         }
+
+        output as u8
+    }
+
+    fn and(self: &mut Self, value_one: u8, value_two: u8) -> u8 {
+        let output = value_one & value_two;
+
+        self.clear_flags();
+
+        if output == 0 {
+            self.flags.set(CpuFlags::ZERO_FLAG, true);
+        }
+
+        self.flags.set(CpuFlags::HALF_CARRY_FLAG, true);
 
         output as u8
     }
