@@ -10,6 +10,13 @@ enum Instruction {
     LoadBH = 0x44,
     LoadBL = 0x45,
     LoadBA = 0x47,
+    LoadDB = 0x50,
+    LoadDC = 0x51,
+    LoadDD = 0x52,
+    LoadDE = 0x53,
+    LoadDH = 0x54,
+    LoadDL = 0x55,
+    LoadDA = 0x57,
 }
 
 pub struct Cpu<'a> {
@@ -63,6 +70,13 @@ impl<'a> Cpu<'a> {
             Instruction::LoadBH => self.b = self.h,
             Instruction::LoadBL => self.b = self.l,
             Instruction::LoadBA => self.b = self.a,
+            Instruction::LoadDB => self.d = self.b,
+            Instruction::LoadDC => self.d = self.c,
+            Instruction::LoadDD => self.d = self.d,
+            Instruction::LoadDE => self.d = self.e,
+            Instruction::LoadDH => self.d = self.h,
+            Instruction::LoadDL => self.d = self.l,
+            Instruction::LoadDA => self.d = self.a,
         }
     }
 }
