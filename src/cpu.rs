@@ -74,6 +74,7 @@ enum Instruction {
 }
 
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     struct CpuFlags: u8 {
         const ZERO_FLAG = 0b10000000;
         const SUBTRACTION_FLAG = 0b01000000;
