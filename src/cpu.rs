@@ -52,6 +52,14 @@ enum Instruction {
     LoadLH = 0x6C,
     LoadLL = 0x6D,
     LoadLA = 0x6F,
+    // the Add A X instruction
+    AddAB = 0x80,
+    AddAC = 0x81,
+    AddAD = 0x82,
+    AddAE = 0x83,
+    AddAH = 0x84,
+    AddAL = 0x85,
+    AddAA = 0x87,
 }
 
 bitflags! {
@@ -162,6 +170,36 @@ impl<'a> Cpu<'a> {
             Instruction::LoadLH => self.l = self.h,
             Instruction::LoadLL => self.l = self.l,
             Instruction::LoadLA => self.l = self.a,
+            // Add A X instruction
+            Instruction::AddAB => self.a = self.add(self.a, self.b),
+            Instruction::AddAC => self.a = self.add(self.a, self.c),
+            Instruction::AddAD => self.a = self.add(self.a, self.d),
+            Instruction::AddAE => self.a = self.add(self.a, self.e),
+            Instruction::AddAH => self.a = self.add(self.a, self.h),
+            Instruction::AddAL => self.a = self.add(self.a, self.l),
+            Instruction::AddAA => self.a = self.add(self.a, self.a),
         }
+    }
+
+    fn add(self: &mut Self, value_one: u8, value_two: u8) -> u8 {
+        // this is ugly, but it's not something worth spending too long to make pretty
+        let half_carry: bool = (((value_one & 0xF) + (value_two & 0xF)) & 0x10) == 0x10;
+        let output: u16 = (value_one as u16) + (value_two as u16);
+
+        self.clear_flags();
+
+        if output as u8 == 0 {
+            self.flags.set(CpuFlags::ZERO_FLAG, true);
+        }
+
+        if half_carry {
+            self.flags.set(CpuFlags::HALF_CARRY_FLAG, true);
+        }
+
+        if output > u8::MAX as u16 {
+            self.flags.set(CpuFlags::CARRY_FLAG, true);
+        }
+
+        output as u8
     }
 }
