@@ -1,6 +1,9 @@
 use crate::memory;
 use bitflags::bitflags;
 
+const INITIAL_PC: u16 = 0x100;
+const INITIAL_SP: u16 = 0xFFFE;
+
 #[derive(FromPrimitive)]
 enum Instruction {
     NOP = 0x00,
@@ -110,8 +113,8 @@ impl<'a> Cpu<'a> {
             e: 0,
             l: 0,
             flags: CpuFlags::empty(),
-            sp: 0xfffe,
-            pc: 0x100,
+            sp: INITIAL_SP,
+            pc: INITIAL_PC,
             memory: memory,
         }
     }
