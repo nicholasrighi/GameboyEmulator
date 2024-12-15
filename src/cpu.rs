@@ -27,6 +27,14 @@ enum Instruction {
     LoadDH = 0x54,
     LoadDL = 0x55,
     LoadDA = 0x57,
+    // Add of the LD E X instructions
+    LoadEB = 0x58,
+    LoadEC = 0x59,
+    LoadED = 0x5A,
+    LoadEE = 0x5B,
+    LoadEH = 0x5C,
+    LoadEL = 0x5D,
+    LoadEA = 0x5F,
     // Add of the LD H X instructions
     LoadHB = 0x60,
     LoadHC = 0x61,
@@ -105,6 +113,14 @@ impl<'a> Cpu<'a> {
             Instruction::LoadDH => self.d = self.h,
             Instruction::LoadDL => self.d = self.l,
             Instruction::LoadDA => self.d = self.a,
+            // Add of the LD E X instructions
+            Instruction::LoadEB => self.e = self.b,
+            Instruction::LoadEC => self.e = self.c,
+            Instruction::LoadED => self.e = self.d,
+            Instruction::LoadEE => self.e = self.e,
+            Instruction::LoadEH => self.e = self.h,
+            Instruction::LoadEL => self.e = self.l,
+            Instruction::LoadEA => self.e = self.a,
             // Add of the LD H X instructions
             Instruction::LoadHB => self.h = self.b,
             Instruction::LoadHC => self.h = self.c,
