@@ -1,4 +1,5 @@
 use crate::memory;
+use bitflags::bitflags;
 
 #[derive(FromPrimitive)]
 enum Instruction {
@@ -53,6 +54,15 @@ enum Instruction {
     LoadLA = 0x6F,
 }
 
+bitflags! {
+    struct CpuFlags: u8 {
+        const ZERO_FLAG = 0b10000000;
+        const SUBTRACTION_FLAG = 0b01000000;
+        const HALF_CARRY_FLAG = 0b00100000;
+        const CARRY_FLAG = 0b00010000;
+    }
+}
+
 pub struct Cpu<'a> {
     // General purpose registers
     a: u8,
@@ -65,6 +75,8 @@ pub struct Cpu<'a> {
     l: u8,
     // the program counter
     sp: u16,
+    // this is the f register
+    flags: CpuFlags,
     // the stack pointer
     pc: u16,
     memory: &'a mut memory::Memory,
@@ -81,6 +93,7 @@ impl<'a> Cpu<'a> {
             c: 0,
             e: 0,
             l: 0,
+            flags: CpuFlags::empty(),
             sp: 0xfffe,
             pc: 0x100,
             memory: memory,
