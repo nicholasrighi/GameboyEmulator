@@ -63,6 +63,14 @@ enum Instruction {
     AddAH = 0x84,
     AddAL = 0x85,
     AddAA = 0x87,
+    // the Adc A X instruction
+    AdcAB = 0x88,
+    AdcAC = 0x89,
+    AdcAD = 0x8A,
+    AdcAE = 0x8B,
+    AdcAH = 0x8C,
+    AdcAL = 0x8D,
+    AdcAA = 0x8F,
     // the Sub A X instruction
     SubAB = 0x90,
     SubAC = 0x91,
@@ -206,6 +214,14 @@ impl<'a> Cpu<'a> {
             Instruction::AddAH => self.a = self.add(self.a, self.h),
             Instruction::AddAL => self.a = self.add(self.a, self.l),
             Instruction::AddAA => self.a = self.add(self.a, self.a),
+            // Adc A X instruction
+            Instruction::AdcAB => self.a = self.adc(self.a, self.b),
+            Instruction::AdcAC => self.a = self.adc(self.a, self.c),
+            Instruction::AdcAD => self.a = self.adc(self.a, self.d),
+            Instruction::AdcAE => self.a = self.adc(self.a, self.e),
+            Instruction::AdcAH => self.a = self.adc(self.a, self.h),
+            Instruction::AdcAL => self.a = self.adc(self.a, self.l),
+            Instruction::AdcAA => self.a = self.adc(self.a, self.a),
             // Sub A X instruction
             Instruction::SubAB => self.a = self.sub(self.a, self.b),
             Instruction::SubAC => self.a = self.sub(self.a, self.c),
@@ -243,6 +259,36 @@ impl<'a> Cpu<'a> {
         if output as u8 == 0 {
             self.flags.set(CpuFlags::ZERO_FLAG, true);
         }
+
+        if half_carry {
+            self.flags.set(CpuFlags::HALF_CARRY_FLAG, true);
+        }
+
+        if output > u8::MAX as u16 {
+            self.flags.set(CpuFlags::CARRY_FLAG, true);
+        }
+
+        output as u8
+    }
+
+    fn adc(self: &mut Self, value_one: u8, value_two: u8) -> u8 {
+        let mut carry: u16 = 0;
+
+        if self.flags.contains(CpuFlags::CARRY_FLAG) {
+            carry = 1;
+        }
+
+        // this is ugly, but it's not something worth spending too long to make pretty
+        let half_carry: bool = (((value_one & 0xF) + (value_two & 0xF)) + carry as u8) > 0x0F;
+        let output: u16 = (value_one as u16) + (value_two as u16) + carry;
+
+        self.clear_flags();
+
+        if output as u8 == 0 {
+            self.flags.set(CpuFlags::ZERO_FLAG, true);
+        }
+
+        self.flags.remove(CpuFlags::SUBTRACTION_FLAG);
 
         if half_carry {
             self.flags.set(CpuFlags::HALF_CARRY_FLAG, true);
@@ -308,6 +354,140 @@ impl<'a> Cpu<'a> {
     #[cfg(test)]
     fn set_byte_in_memory(self: &mut Self, address: u16, data: u8) {
         self.memory.set_byte(address, data);
+    }
+}
+
+#[cfg(test)]
+mod test_adc {
+    use super::*;
+
+    #[test]
+    fn test_adc_aa_no_overflow_no_carry() {
+        let expected_value = 0x4;
+        let expected_flags = CpuFlags::empty();
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x02;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::AdcAA as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_adc_aa_overflow_no_carry() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::CARRY_FLAG | CpuFlags::ZERO_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x80;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::AdcAA as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_adc_aa_no_overflow_with_carry() {
+        let expected_value = 0x5;
+        let expected_flags = CpuFlags::empty();
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.flags.set(CpuFlags::CARRY_FLAG, true);
+
+        cpu.a = 0x02;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::AdcAA as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_adc_aa_overflow_with_carry() {
+        let expected_value = 0x01;
+        let expected_flags = CpuFlags::CARRY_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.flags.set(CpuFlags::CARRY_FLAG, true);
+
+        cpu.a = 0x80;
+        cpu.b = 0x80;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::AdcAA as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_adc_ab_no_overflow_no_carry() {
+        let expected_value = 0x4;
+        let expected_flags = CpuFlags::empty();
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x02;
+        cpu.b = 0x02;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::AdcAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_adc_ab_overflow_no_carry() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::CARRY_FLAG | CpuFlags::ZERO_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x80;
+        cpu.b = 0x80;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::AdcAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_adc_ab_no_overflow_with_carry() {
+        let expected_value = 0x5;
+        let expected_flags = CpuFlags::empty();
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.flags.set(CpuFlags::CARRY_FLAG, true);
+
+        cpu.a = 0x02;
+        cpu.b = 0x02;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::AdcAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_adc_ab_overflow_with_carry() {
+        let expected_value = 0x01;
+        let expected_flags = CpuFlags::CARRY_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.flags.set(CpuFlags::CARRY_FLAG, true);
+
+        cpu.a = 0x80;
+        cpu.b = 0x80;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::AdcAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
     }
 }
 
