@@ -63,6 +63,14 @@ enum Instruction {
     AddAH = 0x84,
     AddAL = 0x85,
     AddAA = 0x87,
+    // the Sub A X instruction
+    SubAB = 0x90,
+    SubAC = 0x91,
+    SubAD = 0x92,
+    SubAE = 0x93,
+    SubAH = 0x94,
+    SubAL = 0x95,
+    SubAA = 0x97,
     // the And A X instruction
     AndAB = 0xA0,
     AndAC = 0xA1,
@@ -198,6 +206,14 @@ impl<'a> Cpu<'a> {
             Instruction::AddAH => self.a = self.add(self.a, self.h),
             Instruction::AddAL => self.a = self.add(self.a, self.l),
             Instruction::AddAA => self.a = self.add(self.a, self.a),
+            // Sub A X instruction
+            Instruction::SubAB => self.a = self.sub(self.a, self.b),
+            Instruction::SubAC => self.a = self.sub(self.a, self.c),
+            Instruction::SubAD => self.a = self.sub(self.a, self.d),
+            Instruction::SubAE => self.a = self.sub(self.a, self.e),
+            Instruction::SubAH => self.a = self.sub(self.a, self.h),
+            Instruction::SubAL => self.a = self.sub(self.a, self.l),
+            Instruction::SubAA => self.a = self.sub(self.a, self.a),
             // And A X instruction
             Instruction::AndAB => self.a = self.and(self.a, self.b),
             Instruction::AndAC => self.a = self.and(self.a, self.c),
@@ -239,6 +255,30 @@ impl<'a> Cpu<'a> {
         output as u8
     }
 
+    fn sub(self: &mut Self, value_one: u8, value_two: u8) -> u8 {
+        // this is ugly, but it's not something worth spending too long to make pretty
+        let half_carry: bool = (((value_one & 0xF) - (value_two & 0xF)) & 0x10) == 0x10;
+        let output: u8 = value_one.wrapping_sub(value_two);
+
+        self.clear_flags();
+
+        if output == 0 {
+            self.flags.set(CpuFlags::ZERO_FLAG, true);
+        }
+
+        self.flags.set(CpuFlags::SUBTRACTION_FLAG, true);
+
+        if half_carry {
+            self.flags.set(CpuFlags::HALF_CARRY_FLAG, true);
+        }
+
+        if value_one < value_two {
+            self.flags.set(CpuFlags::CARRY_FLAG, true);
+        }
+
+        output as u8
+    }
+
     fn and(self: &mut Self, value_one: u8, value_two: u8) -> u8 {
         let output = value_one & value_two;
 
@@ -268,6 +308,218 @@ impl<'a> Cpu<'a> {
     #[cfg(test)]
     fn set_byte_in_memory(self: &mut Self, address: u16, data: u8) {
         self.memory.set_byte(address, data);
+    }
+}
+
+#[cfg(test)]
+mod test_sub {
+    use super::*;
+
+    #[test]
+    fn test_sub_aa() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG | CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAA as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_ab_non_zero() {
+        let expected_value = 0x0F;
+        let expected_flags = CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.b = 0xF0;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_ab_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG | CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.b = cpu.a;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_ac_non_zero() {
+        let expected_value = 0x0F;
+        let expected_flags = CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.c = 0xF0;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAC as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_ac_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG | CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.c = cpu.a;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAC as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_ad_non_zero() {
+        let expected_value = 0x0F;
+        let expected_flags = CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.d = 0xF0;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAD as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_ad_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG | CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.d = cpu.a;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAD as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_ae_non_zero() {
+        let expected_value = 0x0F;
+        let expected_flags = CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.e = 0xF0;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAE as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_ae_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG | CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.e = cpu.a;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAE as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_ah_non_zero() {
+        let expected_value = 0x0F;
+        let expected_flags = CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.h = 0xF0;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAH as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_ah_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG | CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.h = cpu.a;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAH as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_al_non_zero() {
+        let expected_value = 0x0F;
+        let expected_flags = CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.l = 0xF0;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAL as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sub_al_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG | CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.l = cpu.a;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SubAL as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
     }
 }
 
