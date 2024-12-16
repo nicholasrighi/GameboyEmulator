@@ -244,7 +244,7 @@ impl<'a> Cpu<'a> {
 }
 
 #[cfg(test)]
-mod tests {
+mod and_tests {
     use super::*;
 
     #[test]
