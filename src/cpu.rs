@@ -87,6 +87,14 @@ enum Instruction {
     AndAH = 0xA4,
     AndAL = 0xA5,
     AndAA = 0xA7,
+    // the Xor A X instruction
+    XorAB = 0xA8,
+    XorAC = 0xA9,
+    XorAD = 0xAA,
+    XorAE = 0xAB,
+    XorAH = 0xAC,
+    XorAL = 0xAD,
+    XorAA = 0xAF,
     // the Or A X instruction
     OrAB = 0xB0,
     OrAC = 0xB1,
@@ -246,6 +254,14 @@ impl<'a> Cpu<'a> {
             Instruction::OrAH => self.a = self.or(self.a, self.h),
             Instruction::OrAL => self.a = self.or(self.a, self.l),
             Instruction::OrAA => self.a = self.or(self.a, self.a),
+            // Xor A X instruction
+            Instruction::XorAB => self.a = self.xor(self.a, self.b),
+            Instruction::XorAC => self.a = self.xor(self.a, self.c),
+            Instruction::XorAD => self.a = self.xor(self.a, self.d),
+            Instruction::XorAE => self.a = self.xor(self.a, self.e),
+            Instruction::XorAH => self.a = self.xor(self.a, self.h),
+            Instruction::XorAL => self.a = self.xor(self.a, self.l),
+            Instruction::XorAA => self.a = self.xor(self.a, self.a),
         }
     }
 
@@ -347,6 +363,22 @@ impl<'a> Cpu<'a> {
         if output == 0 {
             self.flags.set(CpuFlags::ZERO_FLAG, true);
         }
+
+        output as u8
+    }
+
+    fn xor(self: &mut Self, value_one: u8, value_two: u8) -> u8 {
+        let output = value_one ^ value_two;
+
+        self.clear_flags();
+
+        if output == 0 {
+            self.flags.set(CpuFlags::ZERO_FLAG, true);
+        }
+
+        self.flags.remove(CpuFlags::SUBTRACTION_FLAG);
+        self.flags.remove(CpuFlags::HALF_CARRY_FLAG);
+        self.flags.remove(CpuFlags::CARRY_FLAG);
 
         output as u8
     }
@@ -1149,6 +1181,232 @@ mod or_test {
         cpu.a = 0x00;
         cpu.l = 0x00;
         cpu.set_byte_in_memory(cpu.pc, Instruction::OrAL as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+}
+
+#[cfg(test)]
+mod xortest {
+    use super::*;
+    #[test]
+    fn test_xor_aa_non_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x01;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAA as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_aa_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = expected_value;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAA as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_ab_non_zero() {
+        let expected_value = 0xF0;
+        let expected_flags = CpuFlags::empty();
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.b = 0x0F;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_ab_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x00;
+        cpu.b = 0x00;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_ac_non_zero() {
+        let expected_value = 0xF0;
+        let expected_flags = CpuFlags::empty();
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.c = 0x0F;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAC as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_ac_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x00;
+        cpu.c = 0x00;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAC as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_ad_non_zero() {
+        let expected_value = 0xF0;
+        let expected_flags = CpuFlags::empty();
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.d = 0x0F;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAD as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_ad_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x00;
+        cpu.d = 0x00;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAD as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_ae_non_zero() {
+        let expected_value = 0xF0;
+        let expected_flags = CpuFlags::empty();
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.e = 0x0F;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAE as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_ae_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x00;
+        cpu.e = 0x00;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAE as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_ah_non_zero() {
+        let expected_value = 0xF0;
+        let expected_flags = CpuFlags::empty();
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.h = 0x0F;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAH as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_ah_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x00;
+        cpu.h = 0x00;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAH as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_al_non_zero() {
+        let expected_value = 0xF0;
+        let expected_flags = CpuFlags::empty();
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.l = 0x0F;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAL as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_xor_al_zero() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0x00;
+        cpu.l = 0x00;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::XorAL as u8);
         cpu.execute_instruction();
 
         assert_eq!(cpu.a, expected_value);
