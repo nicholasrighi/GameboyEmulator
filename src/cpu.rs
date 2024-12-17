@@ -105,6 +105,10 @@ impl<'a> Cpu<'a> {
         num::FromPrimitive::from_u8(data).unwrap()
     }
 
+    fn clear_flags(self: &mut Self) {
+        self.flags = CpuFlags::empty();
+    }
+
     fn execute_instruction(self: &mut Self) {
         let instruction = self.get_instruction();
         self.pc += 1;
