@@ -79,6 +79,14 @@ enum Instruction {
     SubAH = 0x94,
     SubAL = 0x95,
     SubAA = 0x97,
+    // the Xor A X instruction
+    SbcAB = 0x98,
+    SbcAC = 0x99,
+    SbcAD = 0x9A,
+    SbcAE = 0x9B,
+    SbcAH = 0x9C,
+    SbcAL = 0x9D,
+    SbcAA = 0x9F,
     // the And A X instruction
     AndAB = 0xA0,
     AndAC = 0xA1,
@@ -246,6 +254,14 @@ impl<'a> Cpu<'a> {
             Instruction::SubAH => self.a = self.sub(self.a, self.h),
             Instruction::SubAL => self.a = self.sub(self.a, self.l),
             Instruction::SubAA => self.a = self.sub(self.a, self.a),
+            // Sbc A X instruction
+            Instruction::SbcAB => self.a = self.sbc(self.a, self.b),
+            Instruction::SbcAC => self.a = self.sbc(self.a, self.c),
+            Instruction::SbcAD => self.a = self.sbc(self.a, self.d),
+            Instruction::SbcAE => self.a = self.sbc(self.a, self.e),
+            Instruction::SbcAH => self.a = self.sbc(self.a, self.h),
+            Instruction::SbcAL => self.a = self.sbc(self.a, self.l),
+            Instruction::SbcAA => self.a = self.sbc(self.a, self.a),
             // And A X instruction
             Instruction::AndAB => self.a = self.and(self.a, self.b),
             Instruction::AndAC => self.a = self.and(self.a, self.c),
@@ -351,6 +367,35 @@ impl<'a> Cpu<'a> {
         }
 
         if value_one < value_two {
+            self.flags.set(CpuFlags::CARRY_FLAG, true);
+        }
+
+        output as u8
+    }
+
+    fn sbc(self: &mut Self, value_one: u8, value_two: u8) -> u8 {
+        let mut carry: u8 = 0;
+
+        if self.flags.contains(CpuFlags::CARRY_FLAG) {
+            carry = 1;
+        }
+
+        let output: u8 = value_one.wrapping_sub(value_two).wrapping_sub(carry as u8);
+
+        self.clear_flags();
+
+        if output == 0 {
+            self.flags.set(CpuFlags::ZERO_FLAG, true);
+        }
+
+        self.flags.set(CpuFlags::SUBTRACTION_FLAG, true);
+
+        if value_one & 0x0F < (value_two.wrapping_sub(carry) & 0x0F) {
+            self.flags.set(CpuFlags::HALF_CARRY_FLAG, true);
+        }
+
+        // only happens if wrap around, so we must have carried
+        if output >= value_one {
             self.flags.set(CpuFlags::CARRY_FLAG, true);
         }
 
@@ -750,6 +795,108 @@ mod test_sub {
         cpu.a = 0xFF;
         cpu.l = cpu.a;
         cpu.set_byte_in_memory(cpu.pc, Instruction::SubAL as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+}
+
+#[cfg(test)]
+mod test_sbc {
+    use super::*;
+
+    #[test]
+    fn test_sbc_aa_no_carry() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG | CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SbcAA as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sbc_aa_with_carry() {
+        let expected_value = 0xFF;
+        let expected_flags = CpuFlags::SUBTRACTION_FLAG | CpuFlags::CARRY_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.flags.set(CpuFlags::CARRY_FLAG, true);
+
+        cpu.a = 0xFF;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SbcAA as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sbc_ab_non_zero_no_carry() {
+        let expected_value = 0x0F;
+        let expected_flags = CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.b = 0xF0;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SbcAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sbc_ab_zero_no_carry() {
+        let expected_value = 0x00;
+        let expected_flags = CpuFlags::ZERO_FLAG | CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+
+        cpu.a = 0xFF;
+        cpu.b = cpu.a;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SbcAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sbc_ab_non_zero_with_carry() {
+        let expected_value = 0x0E;
+        let expected_flags = CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.flags.set(CpuFlags::CARRY_FLAG, true);
+
+        cpu.a = 0xFF;
+        cpu.b = 0xF0;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SbcAB as u8);
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.a, expected_value);
+        assert_eq!(cpu.flags, expected_flags);
+    }
+
+    #[test]
+    fn test_sbc_ab_zero_with_carry() {
+        let expected_value = 0xFF;
+        let expected_flags = CpuFlags::CARRY_FLAG | CpuFlags::SUBTRACTION_FLAG;
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.flags.set(CpuFlags::CARRY_FLAG, true);
+
+        cpu.a = 0xFF;
+        cpu.b = cpu.a;
+        cpu.set_byte_in_memory(cpu.pc, Instruction::SbcAB as u8);
         cpu.execute_instruction();
 
         assert_eq!(cpu.a, expected_value);
