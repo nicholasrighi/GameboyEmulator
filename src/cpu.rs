@@ -20,6 +20,7 @@ enum EightBitRegister {
 
 enum MicroOp {
     LoadImmediate { destination: EightBitRegister },
+    StoreToMemory { value: u8, address: u16 },
 }
 
 #[derive(FromPrimitive)]
@@ -30,6 +31,11 @@ enum Instruction {
     LoadDeTwoByteImmediate = 0x11,
     LoadHlTwoByteImmediate = 0x21,
     LoadSpTwoByteImmediate = 0x31,
+    // Store from accumulator
+    StoreBcA = 0x02,
+    StoreDeA = 0x12,
+    StoreHlPlusA = 0x22,
+    StoreHlMinusA = 0x32,
     // the LD B X instructions
     LoadBB = 0x40,
     LoadBC = 0x41,
@@ -210,6 +216,33 @@ impl<'a> Cpu<'a> {
         }
     }
 
+    fn get_bc(self: &Self) -> u16 {
+        ((self.b as u16) << 8) + (self.c as u16)
+    }
+
+    fn get_de(self: &Self) -> u16 {
+        ((self.d as u16) << 8) + (self.e as u16)
+    }
+
+    fn get_hl(self: &Self) -> u16 {
+        ((self.h as u16) << 8) + (self.l as u16)
+    }
+
+    fn set_bc(self: &mut Self, value: u16) {
+        self.b = (value >> 8) as u8;
+        self.c = (value & 0xFF) as u8;
+    }
+
+    fn set_de(self: &mut Self, value: u16) {
+        self.d = (value >> 8) as u8;
+        self.e = (value & 0xFF) as u8;
+    }
+
+    fn set_hl(self: &mut Self, value: u16) {
+        self.h = (value >> 8) as u8;
+        self.l = (value & 0xFF) as u8;
+    }
+
     fn execute_micro_op(self: &mut Self) {
         let micro_op = self.micro_op_queue.pop_front().unwrap();
 
@@ -228,6 +261,9 @@ impl<'a> Cpu<'a> {
                     EightBitRegister::S => self.sp = ((value as u16) << 8) + (self.sp & 0x00FF),
                     EightBitRegister::P => self.sp = (self.sp & 0xFF00) + value as u16,
                 }
+            }
+            MicroOp::StoreToMemory { value, address } => {
+                self.memory.set_byte(address, value);
             }
         }
         self.pc += 1;
@@ -254,6 +290,28 @@ impl<'a> Cpu<'a> {
             Instruction::LoadSpTwoByteImmediate => {
                 self.load_eight_bit_register_with_immediate(EightBitRegister::P);
                 self.load_eight_bit_register_with_immediate(EightBitRegister::S);
+            }
+            Instruction::StoreBcA => self.micro_op_queue.push_back(MicroOp::StoreToMemory {
+                value: self.a,
+                address: self.get_bc(),
+            }),
+            Instruction::StoreDeA => self.micro_op_queue.push_back(MicroOp::StoreToMemory {
+                value: self.a,
+                address: self.get_de(),
+            }),
+            Instruction::StoreHlPlusA => {
+                self.micro_op_queue.push_back(MicroOp::StoreToMemory {
+                    value: self.a,
+                    address: self.get_hl(),
+                });
+                self.set_hl(self.get_hl() + 1);
+            }
+            Instruction::StoreHlMinusA => {
+                self.micro_op_queue.push_back(MicroOp::StoreToMemory {
+                    value: self.a,
+                    address: self.get_hl(),
+                });
+                self.set_hl(self.get_hl() - 1);
             }
             // Implement the LD B X instructions
             Instruction::LoadBB => self.b = self.b,
@@ -532,6 +590,87 @@ impl<'a> Cpu<'a> {
     #[cfg(test)]
     fn set_byte_in_memory(self: &mut Self, address: u16, data: u8) {
         self.memory.set_byte(address, data);
+    }
+}
+
+#[cfg(test)]
+mod test_store_sixteen_bit_from_accumulator {
+    use super::*;
+
+    #[test]
+    fn test_store_a_to_bc() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        let address = 0x100;
+        let expected_value = 0x12;
+
+        cpu.a = expected_value;
+        cpu.b = (address >> 8) as u8;
+        cpu.c = (address & 0xFF) as u8;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::StoreBcA as u8);
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.memory.get_data(address), expected_value);
+    }
+
+    #[test]
+    fn test_store_a_to_de() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        let address = 0x100;
+        let expected_value = 0x12;
+
+        cpu.a = expected_value;
+        cpu.d = (address >> 8) as u8;
+        cpu.e = (address & 0xFF) as u8;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::StoreDeA as u8);
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.memory.get_data(address), expected_value);
+    }
+
+    #[test]
+    fn test_store_a_to_hl_plus() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        let address = 0x100;
+        let expected_value = 0x12;
+
+        cpu.a = expected_value;
+        cpu.h = (address >> 8) as u8;
+        cpu.l = (address & 0xFF) as u8;
+        let initial_hl = cpu.get_hl();
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::StoreHlPlusA as u8);
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.memory.get_data(address), expected_value);
+        assert_eq!(cpu.get_hl(), initial_hl + 1);
+    }
+
+    #[test]
+    fn test_store_a_to_hl_minus() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        let address = 0x100;
+        let expected_value = 0x12;
+
+        cpu.a = expected_value;
+        cpu.h = (address >> 8) as u8;
+        cpu.l = (address & 0xFF) as u8;
+        let initial_hl = cpu.get_hl();
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::StoreHlMinusA as u8);
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.memory.get_data(address), expected_value);
+        assert_eq!(cpu.get_hl(), initial_hl - 1);
     }
 }
 
