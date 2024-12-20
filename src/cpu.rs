@@ -1,12 +1,35 @@
 use crate::memory;
 use bitflags::bitflags;
+use std::collections::VecDeque;
 
 const INITIAL_PC: u16 = 0x100;
 const INITIAL_SP: u16 = 0xFFFE;
 
+enum EightBitRegister {
+    A,
+    B,
+    D,
+    H,
+    F,
+    C,
+    E,
+    L,
+    S,
+    P,
+}
+
+enum MicroOp {
+    LoadImmediate { destination: EightBitRegister },
+}
+
 #[derive(FromPrimitive)]
 enum Instruction {
     NOP = 0x00,
+    // LD rr,nn instruction
+    LoadBcTwoByteImmediate = 0x01,
+    LoadDeTwoByteImmediate = 0x11,
+    LoadHlTwoByteImmediate = 0x21,
+    LoadSpTwoByteImmediate = 0x31,
     // the LD B X instructions
     LoadBB = 0x40,
     LoadBC = 0x41,
@@ -147,6 +170,8 @@ pub struct Cpu<'a> {
     flags: CpuFlags,
     // the stack pointer
     pc: u16,
+    // stores the micro ops that we need to execute
+    micro_op_queue: VecDeque<MicroOp>,
     memory: &'a mut memory::Memory,
 }
 
@@ -161,6 +186,7 @@ impl<'a> Cpu<'a> {
             c: 0,
             e: 0,
             l: 0,
+            micro_op_queue: VecDeque::new(),
             flags: CpuFlags::empty(),
             sp: INITIAL_SP,
             pc: INITIAL_PC,
@@ -177,11 +203,58 @@ impl<'a> Cpu<'a> {
         self.flags = CpuFlags::empty();
     }
 
-    fn execute_instruction(self: &mut Self) {
+    pub fn execute_instruction(self: &mut Self) {
+        match self.micro_op_queue.is_empty() {
+            true => self.fetch_and_execute_instruction(),
+            false => self.execute_micro_op(),
+        }
+    }
+
+    fn execute_micro_op(self: &mut Self) {
+        let micro_op = self.micro_op_queue.pop_front().unwrap();
+
+        match micro_op {
+            MicroOp::LoadImmediate { destination } => {
+                let value = self.memory.get_data(self.pc);
+                match destination {
+                    EightBitRegister::A => self.a = value,
+                    EightBitRegister::B => self.b = value,
+                    EightBitRegister::D => self.d = value,
+                    EightBitRegister::H => self.h = value,
+                    EightBitRegister::F => self.f = value,
+                    EightBitRegister::C => self.c = value,
+                    EightBitRegister::E => self.e = value,
+                    EightBitRegister::L => self.l = value,
+                    EightBitRegister::S => self.sp = ((value as u16) << 8) + (self.sp & 0x00FF),
+                    EightBitRegister::P => self.sp = (self.sp & 0xFF00) + value as u16,
+                }
+            }
+        }
+        self.pc += 1;
+    }
+
+    fn fetch_and_execute_instruction(self: &mut Self) {
         let instruction = self.get_instruction();
         self.pc += 1;
         match instruction {
             Instruction::NOP => {}
+            // LD rr,nn instruction
+            Instruction::LoadBcTwoByteImmediate => {
+                self.load_eight_bit_register_with_immediate(EightBitRegister::C);
+                self.load_eight_bit_register_with_immediate(EightBitRegister::B);
+            }
+            Instruction::LoadDeTwoByteImmediate => {
+                self.load_eight_bit_register_with_immediate(EightBitRegister::E);
+                self.load_eight_bit_register_with_immediate(EightBitRegister::D);
+            }
+            Instruction::LoadHlTwoByteImmediate => {
+                self.load_eight_bit_register_with_immediate(EightBitRegister::L);
+                self.load_eight_bit_register_with_immediate(EightBitRegister::H);
+            }
+            Instruction::LoadSpTwoByteImmediate => {
+                self.load_eight_bit_register_with_immediate(EightBitRegister::P);
+                self.load_eight_bit_register_with_immediate(EightBitRegister::S);
+            }
             // Implement the LD B X instructions
             Instruction::LoadBB => self.b = self.b,
             Instruction::LoadBC => self.b = self.c,
@@ -295,6 +368,12 @@ impl<'a> Cpu<'a> {
             Instruction::CpAL => self.cp(self.a, self.l),
             Instruction::CpAA => self.cp(self.a, self.a),
         }
+    }
+
+    fn load_eight_bit_register_with_immediate(self: &mut Self, register: EightBitRegister) {
+        self.micro_op_queue.push_back(MicroOp::LoadImmediate {
+            destination: register,
+        });
     }
 
     fn add(self: &mut Self, value_one: u8, value_two: u8) -> u8 {
@@ -457,6 +536,81 @@ impl<'a> Cpu<'a> {
 }
 
 #[cfg(test)]
+mod test_load_sixteen_bit_immediate {
+    use super::*;
+
+    #[test]
+    fn test_load_bc() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        let lower_byte = 0x0F;
+        let upper_byte = 0xF0;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::LoadBcTwoByteImmediate as u8);
+        cpu.set_byte_in_memory(cpu.pc + 1, lower_byte);
+        cpu.set_byte_in_memory(cpu.pc + 2, upper_byte);
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.c, lower_byte);
+        assert_eq!(cpu.b, upper_byte);
+    }
+
+    #[test]
+    fn test_load_de() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        let lower_byte = 0x0F;
+        let upper_byte = 0xF0;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::LoadDeTwoByteImmediate as u8);
+        cpu.set_byte_in_memory(cpu.pc + 1, lower_byte);
+        cpu.set_byte_in_memory(cpu.pc + 2, upper_byte);
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.e, lower_byte);
+        assert_eq!(cpu.d, upper_byte);
+    }
+
+    #[test]
+    fn test_load_hl() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        let lower_byte = 0x0F;
+        let upper_byte = 0xF0;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::LoadHlTwoByteImmediate as u8);
+        cpu.set_byte_in_memory(cpu.pc + 1, lower_byte);
+        cpu.set_byte_in_memory(cpu.pc + 2, upper_byte);
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.l, lower_byte);
+        assert_eq!(cpu.h, upper_byte);
+    }
+
+    #[test]
+    fn test_load_sp() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        let lower_byte = 0x0F;
+        let upper_byte = 0xF0;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::LoadSpTwoByteImmediate as u8);
+        cpu.set_byte_in_memory(cpu.pc + 1, lower_byte);
+        cpu.set_byte_in_memory(cpu.pc + 2, upper_byte);
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+        cpu.execute_instruction();
+
+        assert_eq!(cpu.sp, ((upper_byte as u16) << 8) + (lower_byte as u16));
+    }
+}
+
 mod test_adc {
     use super::*;
 
