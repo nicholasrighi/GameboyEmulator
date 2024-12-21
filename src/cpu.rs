@@ -57,6 +57,14 @@ enum Instruction {
     IncDe = 0x13,
     IncHl = 0x23,
     IncSp = 0x33,
+    // Inc r
+    IncA = 0x3C,
+    IncB = 0x04,
+    IncC = 0x0C,
+    IncD = 0x14,
+    IncE = 0x1C,
+    IncH = 0x24,
+    IncL = 0x2C,
     // the LD B X instructions
     LoadBB = 0x40,
     LoadBC = 0x41,
@@ -389,6 +397,14 @@ impl<'a> Cpu<'a> {
                         value: new_value,
                     });
             }
+            // Inc r
+            Instruction::IncA => self.a = self.a.wrapping_add(1),
+            Instruction::IncB => self.b = self.b.wrapping_add(1),
+            Instruction::IncC => self.c = self.c.wrapping_add(1),
+            Instruction::IncD => self.d = self.d.wrapping_add(1),
+            Instruction::IncE => self.e = self.e.wrapping_add(1),
+            Instruction::IncH => self.h = self.h.wrapping_add(1),
+            Instruction::IncL => self.l = self.l.wrapping_add(1),
             // Implement the LD B X instructions
             Instruction::LoadBB => self.b = self.b,
             Instruction::LoadBC => self.b = self.c,
@@ -747,6 +763,88 @@ mod test_store_sixteen_bit_from_accumulator {
 
         assert_eq!(cpu.memory.get_data(address), expected_value);
         assert_eq!(cpu.get_hl(), initial_hl - 1);
+    }
+}
+
+#[cfg(test)]
+mod tes_inc_r {
+    use super::*;
+
+    #[test]
+    fn test_in_a() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.a = 0xFF;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::IncA as u8);
+        cpu.execute_instruction();
+        assert_eq!(cpu.a, 0x00);
+    }
+
+    #[test]
+    fn test_in_b() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.b = 0xFF;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::IncB as u8);
+        cpu.execute_instruction();
+        assert_eq!(cpu.b, 0x00);
+    }
+
+    #[test]
+    fn test_in_c() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.c = 0xFF;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::IncC as u8);
+        cpu.execute_instruction();
+        assert_eq!(cpu.c, 0x00);
+    }
+
+    #[test]
+    fn test_in_d() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.d = 0xFF;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::IncD as u8);
+        cpu.execute_instruction();
+        assert_eq!(cpu.d, 0x00);
+    }
+
+    #[test]
+    fn test_in_e() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.e = 0xFF;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::IncE as u8);
+        cpu.execute_instruction();
+        assert_eq!(cpu.e, 0x00);
+    }
+
+    #[test]
+    fn test_in_h() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.h = 0xFF;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::IncH as u8);
+        cpu.execute_instruction();
+        assert_eq!(cpu.h, 0x00);
+    }
+
+    #[test]
+    fn test_in_l() {
+        let mut memory = memory::Memory::new();
+        let mut cpu = Cpu::new(&mut memory);
+        cpu.l = 0xFF;
+
+        cpu.set_byte_in_memory(cpu.pc, Instruction::IncL as u8);
+        cpu.execute_instruction();
+        assert_eq!(cpu.l, 0x00);
     }
 }
 
